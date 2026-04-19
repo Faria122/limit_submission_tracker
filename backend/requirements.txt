@@ -1,9 +1,9 @@
 asgiref==3.11.1
 Deprecated==1.2.18
 distlib==0.3.8
-Django==5.2.12
+Django==4.2.7
 django-cors-headers==4.9.0
-django-filter==25.2
+django-filter==23.5
 djangorestframework==3.17.1
 djangorestframework-camel-case==1.4.2
 Faker==33.3.0
@@ -20,3 +20,7 @@ sqlparse==0.5.5
 typing_extensions==4.15.0
 virtualenv==20.26.6
 wrapt==1.17.2
+gunicorn
+whitenoise
+dj-database-url
+psycopg2-binary

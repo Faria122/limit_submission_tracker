@@ -100,16 +100,16 @@ The Next.js app is built around a single principle: **the URL is the source of t
 
 ## Stretch Goals Implemented
 
-- All optional filters: `createdFrom`, `createdTo`, `hasDocuments`, `hasNotes`, `priority`
-- URL-synced filters - every filter change updates the browser URL
-- Responsive design - table on desktop, card stack on mobile
-- MUI Skeleton loading states (not spinners)
-- `placeholderData` for seamless pagination transitions
-- 13 targeted backend tests, all passing - including the golden-path `companySearch` + `document_count` test
-- Deterministic owner avatars with colour generation
-- Debounced company search (500ms)
-- Empty state and error state with retry on the list page
-- Custom pagination envelope with `pageSize` field
+- ✅ All optional filters: `createdFrom`, `createdTo`, `hasDocuments`, `hasNotes`, `priority`
+- ✅ URL-synced filters — every filter change updates the browser URL
+- ✅ Responsive design — table on desktop, card stack on mobile
+- ✅ MUI Skeleton loading states (not spinners)
+- ✅ `placeholderData` for seamless pagination transitions
+- ✅ 13 targeted backend tests, all passing — including the golden-path `companySearch` + `document_count` test
+- ✅ Deterministic owner avatars with colour generation
+- ✅ Debounced company search (500ms)
+- ✅ Empty state and error state with retry on the list page
+- ✅ Custom pagination envelope with `pageSize` field
 
 ## Stretch Goals Not Implemented (but noted)
 - Authentication (JWT or session-based)

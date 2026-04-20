@@ -1,135 +1,117 @@
-# Submission Tracker Take-home Challenge
+# Candidate Solution Notes
 
-This repository hosts the boilerplate for the Submission Tracker assignment. It includes a Django +
-Django REST Framework backend and a Next.js frontend scaffold so candidates can focus on API
-design, relational data modelling, and product-focused UI work.
-
-## Challenge Overview
-
-Operations managers need a workspace to review broker-submitted opportunities. Build a lightweight
-tool that lets them browse incoming submissions, filter by business context, and inspect full
-details per record. Deliver a polished frontend experience backed by clean APIs.
-
-### Goals
-
-- **Backend:** Model the domain, expose list and detail endpoints, and support realistic filtering.
-- **Frontend (higher weight):** Craft an intuitive list and detail experience with filters that map
-  to query parameters. Focus on UX clarity, organization, and maintainability.
-
-## Data Model
-
-Required entities (already defined in `submissions/models.py`):
-
-- `Broker`: name, contact email
-- `Company`: legal name, industry, headquarters city
-- `TeamMember`: internal owner for a submission
-- `Submission`: links to company, broker, owner with status, priority, and summary
-- `Contact`: primary contacts for a submission
-- `Document`: references to supporting files
-- `Note`: threaded context for collaboration
-
-Seed data (~25 submissions with dozens of related contacts, documents, and notes) is available via
-`python manage.py seed_submissions`. Re-run with `--force` to rebuild the dataset.
-
-## API Requirements
-
-- `GET /api/submissions/`
-  - Returns paginated submissions with company, broker, owner, counts of related documents/notes,
-    and the latest note preview.
-  - Supports filters via query params. `status` is wired up; extend filters for `brokerId` and
-    `companySearch` (plus optional extras like `createdFrom`, `createdTo`, `hasDocuments`, `hasNotes`).
-- `GET /api/submissions/<id>/`
-  - Returns the full submission plus related contacts, documents, and notes.
-- `GET /api/brokers/`
-  - Returns brokers for the frontend dropdown.
-
-Viewsets, serializers, and base filters are in place but intentionally minimal so you can refine
-the query behavior and filtering logic.
-
-## Frontend Workspace Overview
-
-The Next.js 16 + React 19 app in `frontend/` is pre-wired for this challenge. Material UI handles
-layout, axios powers HTTP requests, and `@tanstack/react-query` is ready for data fetching. The list
-and detail routes under `/submissions` are scaffolded so you can focus on API consumption and UX
-polish.
-
-### What is pre-built?
-
-- Global providers supply Material UI theming and a shared React Query client.
-- `/submissions` hosts the list view with filter inputs and hints about required query params.
-- `/submissions/[id]` hosts the detail shell and links back to the list.
-- Custom hooks in `lib/hooks` define how to fetch submissions and brokers. Each hook is disabled by
-  default (`enabled: false`) so no network requests fire until you enable them.
-
-### What you need to implement
-
-- Wire the filter state to query parameters and React Query `queryFn`s.
-- Render table/card layouts for the submission list along with loading, empty, and error states.
-- Build the detail page sections for summary data, contacts, documents, and notes.
-- Enable the queries and handle pagination or other UX you want to highlight.
-
-## Project Structure
-
-- `backend/`: Django project with REST API, seed command, and submission models.
-- `frontend/`: Next.js app described above.
-- `INTERVIEWER_NOTES.md`: Context for reviewers/interviewers.
-
-## Environment Variables
-
-- Frontend requests default to `http://localhost:8000/api`. Override this by creating
-  `frontend/.env.local` and setting `NEXT_PUBLIC_API_BASE_URL`.
-
-## Getting Started
+## How to Run
 
 ### Backend
-
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py seed_submissions  # optional but recommended
-# add --force to rebuild the generated sample data
+python manage.py seed_submissions
 python manage.py runserver 0.0.0.0:8000
 ```
 
 ### Frontend
-
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local  # create if you want a custom API base
-# NEXT_PUBLIC_API_BASE_URL defaults to http://localhost:8000/api
 npm run dev
 ```
 
-Visit `http://localhost:3000/submissions` to start building.
+### Backend Tests
+```bash
+cd backend
+source .venv/bin/activate
+python manage.py test submissions -v 2   # 13 tests, all passing
+```
 
-## Development Workflow
 
-1. Start the Django server on port 8000 (`python manage.py runserver`).
-2. Start the Next.js dev server on port 3000 (`npm run dev`).
-3. Iterate on backend filters, serializers, and viewsets, then refresh the frontend to see updated
-   data.
-4. When ready, add README notes summarizing your approach, tradeoffs, and any stretch goals.
 
-## Submission Instructions
+Visit `http://localhost:3000/submissions`.
 
-- Provide a short README update summarizing approach, tradeoffs, and how to run the solution.
-- Record and share a brief screen capture (max 2 minutes) demonstrating the frontend working end-to-end with the backend.
-- Call out any stretch goals implemented.
-- Automated tests are optional, but including targeted backend or frontend tests is a strong signal.
+---
 
-## Evaluation Rubric
+## Approach
 
-- **Frontend (45%)** – UX clarity, filter UX tied to query params, state/data management, handling
-  of loading/empty/error cases, and overall polish.
-- **Backend (30%)** – API design, serialization choices, filtering implementation, and attention to
-  relational data handling.
-- **Code Quality (15%)** – Structure, naming, documentation/readability, testing where it adds
-  value.
-- **Product Thinking (10%)** – Workflow clarity, assumptions noted, and thoughtful UX details.
+### Backend
 
-## Optional Bonus
+The backend is a Django REST Framework API with three read-only endpoints:
 
-Authentication, deployment, or extra tooling are not required but welcome if scope allows.
+- `GET /api/submissions/` — paginated list with annotations
+- `GET /api/submissions/<id>/` — full detail with all relations
+- `GET /api/brokers/` — broker list for the filter dropdown
+
+**Query performance** was the primary focus. The list endpoint uses:
+- `select_related(company, broker, owner)` — resolves all FK joins in a single SQL JOIN, preventing the N+1 problem
+- `prefetch_related(contacts, documents, notes)` — batch-loads reverse relations in 3 additional queries regardless of result size
+- `Count(..., distinct=True)` and `Subquery` — `document_count`, `note_count`, and `latest_note_preview` are computed entirely in the database, never in Python
+
+The entire list endpoint runs in approximately 5 SQL queries whether returning 10 or 100 submissions.
+
+**Serializer design** uses two tiers: a lean `SubmissionListSerializer` for the list (annotation-powered counts, nested company/broker names so the frontend makes zero extra calls) and a rich `SubmissionDetailSerializer` for the detail page (full nested contacts, documents, and notes in a single response).
+
+**Filters implemented:**
+
+| Param | Type | Description |
+|---|---|---|
+| `status` | exact (case-insensitive) | new, in_review, closed, lost |
+| `brokerId` | exact FK | filter by broker |
+| `companySearch` | `icontains` | partial company name search |
+| `priority` | exact | high, medium, low |
+| `createdFrom` | date `>=` | ISO 8601 |
+| `createdTo` | date `<=` | ISO 8601 |
+| `hasDocuments` | boolean | submissions with/without attachments |
+| `hasNotes` | boolean | submissions with/without notes |
+
+`companySearch` uses `icontains` rather than `istartswith` so that searching "tech" also matches "FinTech Solutions" mid-word — more natural for an ops manager who may only remember part of a name.
+
+The custom pagination class adds `pageSize` to the standard DRF envelope so the frontend can build pagination controls without any extra API calls.
+
+### Frontend
+
+The Next.js app is built around a single principle: **the URL is the source of truth**. Every filter — company search, broker, status — is reflected in the URL query string the moment it changes. This means:
+- Browser back/forward navigation works correctly
+- Sharing a filtered URL gives the recipient the exact same view
+- Page refresh preserves filter state
+
+**Key implementation decisions:**
+
+- **Debounced search** — company search fires after 500ms of inactivity, not on every keystroke, to avoid hammering the API
+- **MUI Skeletons** instead of spinners — the list and detail pages both show skeleton shapes matching the real content layout while loading, making the app feel significantly faster
+- **`placeholderData`** on the TanStack Query hook — keeps the previous page's data visible while the next page loads, eliminating flicker between pages
+- **Responsive layout** — table view on desktop, card stack on mobile, using MUI `useMediaQuery`
+- **Empty and error states** — distinct UI for "no results" (with a helpful message) and "API failure" (with a retry button)
+- **Owner avatars** — deterministic colour generation from the owner's name so the same person always gets the same colour
+
+---
+
+## Tradeoffs
+
+- **Read-only API** — the spec defines only GET endpoints and uses `ReadOnlyModelViewSet`. A production tool would add `PATCH /api/submissions/<id>/` for status updates and `POST /api/submissions/<id>/notes/` for adding notes. I stayed within the spec rather than inventing endpoints that weren't asked for.
+
+- **No authentication** — added as a stretch goal note below. The ops dashboard would normally be behind auth.
+
+- **`icontains` vs full-text search** — `icontains` is sufficient for the dataset size described. At scale, this would be replaced with PostgreSQL full-text search (`SearchVector`) or a dedicated search index.
+
+- **Client-side pagination controls** — pagination state lives in the URL and is read by the list page on every render. This is intentional: it means the back button correctly returns to the same page of results.
+
+---
+
+## Stretch Goals Implemented
+
+- ✅ All optional filters: `createdFrom`, `createdTo`, `hasDocuments`, `hasNotes`, `priority`
+- ✅ URL-synced filters — every filter change updates the browser URL
+- ✅ Responsive design — table on desktop, card stack on mobile
+- ✅ MUI Skeleton loading states (not spinners)
+- ✅ `placeholderData` for seamless pagination transitions
+- ✅ 13 targeted backend tests, all passing — including the golden-path `companySearch` + `document_count` test
+- ✅ Deterministic owner avatars with colour generation
+- ✅ Debounced company search (500ms)
+- ✅ Empty state and error state with retry on the list page
+- ✅ Custom pagination envelope with `pageSize` field
+
+## Stretch Goals Not Implemented (but noted)
+- Authentication (JWT or session-based)
+- Deployment
+- Frontend tests

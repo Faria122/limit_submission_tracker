@@ -167,7 +167,12 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 _allowed = os.environ.get('ALLOWED_HOSTS', '')
-ALLOWED_HOSTS = _allowed.split(',') if _allowed else ['*']
+'''ALLOWED_HOSTS = _allowed.split(',') if _allowed else ['*']'''
+ALLOWED_HOSTS = [
+    'limitsubmissiontracker-production.up.railway.app',
+    'localhost',
+    '127.0.0.1',
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',

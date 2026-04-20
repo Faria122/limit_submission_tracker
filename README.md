@@ -110,8 +110,8 @@ The Next.js app is built around a single principle: **the URL is the source of t
 - ✅ Debounced company search (500ms)
 - ✅ Empty state and error state with retry on the list page
 - ✅ Custom pagination envelope with `pageSize` field
-
-## Stretch Goals Not Implemented (but noted)
-- Authentication (JWT or session-based)
 - Deployment
+
+## Stretch Goals Not Implemented 
+- Authentication (JWT or session-based)
 - Frontend tests
